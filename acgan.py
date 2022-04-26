@@ -1,9 +1,8 @@
 from cProfile import label
 from glob import glob
 from importlib.resources import path
-from modulefinder import Module
 import pathlib
-from tkinter.ttk import LabeledScale
+from modulefinder import Module
 from turtle import shape
 import tensorflow as tf
 import numpy as np
@@ -67,7 +66,7 @@ def discrimitor_loss(real_S_out, real_C_out, fake_S_out, label):
 
     return real_loss + real_class_loss + fake_loss
 
-#
+#生成器损失函数
 def geneatoer_loss(fake_S_out, fake_C_out, label):
     fake_loss = SLoss(tf.ones_like(fake_S_out), fake_S_out)
     fake_class_loss = CLoss(label, fake_C_out)
@@ -107,7 +106,7 @@ def generator_model():
     model = tf.keras.Model(inputs=[noise, label], outputs=x)
     return model
 
-#判断器
+#判别器
 def discriminator_model():
     image = tf.keras.layers.Input(shape=((64, 64, 3)))
 
@@ -165,17 +164,17 @@ def train_step(image, label):
 
 #训练函数
 def train(dataset, epochs):
+    print("kaishixunlian")
     for epoch in range(epochs):
         for images_batch, label_batch in dataset:
             train_step(images_batch, label_batch)
-    if epoch % 100 == 0:
-        print("epoch:", epoch)
-        plot_gen_image(generator,noise_seed, label_seed)
+        if epoch % 2 == 0:
+            print("epoch:", epoch)
+            plot_gen_image(generator,noise_seed, label_seed)
 
 #绘图函数
 def plot_gen_image(model, noise, label):
     gen_image = model((noise, label), training=False)
-    gen_image = tf.squeeze(gen_image, -1)
 
     fig = plt.figure(figsize=(10, 1))
     for i in range(10):
@@ -186,10 +185,6 @@ def plot_gen_image(model, noise, label):
 
 
 dataset = make_dataset()
-# for epoch in range(epochs):
-#     for image_batch in dataset:
-#         print(image_batch.shape[0])
-
 train(dataset,epochs)
 
 
