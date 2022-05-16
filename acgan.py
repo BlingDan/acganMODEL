@@ -3,6 +3,7 @@ from glob import glob
 from importlib.resources import path
 import pathlib
 from modulefinder import Module
+from pprint import pprint
 from turtle import shape
 import tensorflow as tf
 import numpy as np
@@ -17,19 +18,19 @@ epochs = 1000
 
 
 
-def load_image(path, label):
+def load_image(path):
     img = tf.io.read_file(path)
     img = tf.image.decode_jpeg(img)
     img = tf.image.resize(img, [192, 192]) #调整图像大小
     img = tf.image.random_crop(img, [64, 64, 3]) #随机裁剪成64*64
     img = tf.image.random_flip_left_right(img) #随机左右反转
     img = img / 255.0
-    return img, label
+    return img
 
 
 #制作数据集
 def make_dataset():
-    images_path = glob.glob('D:/NotOnlyCode/srf/Acgan/wheat_leaf/*/*.jpg')
+    images_path = glob.glob('D:/NotOnlyCode/srf/Acgan/achieve/*/*.jpeg')
     labels = [path.split("\\")[1] for path in images_path]
     random.shuffle(images_path)
 
@@ -39,10 +40,18 @@ def make_dataset():
     # for image, label in zip(images_path[:5], all_image_labels[:5]):
     #     print(image, "->", label)
 
-    dataset = tf.data.Dataset.from_tensor_slices((images_path, all_image_labels))
-    dataset = dataset.map(load_image)
-    dataset = dataset.batch(batch_size)
+    # dataset = tf.data.Dataset.from_tensor_slices((images_path, all_image_labels))
+    # dataset = dataset.map(load_image)
+    # dataset = dataset.batch(batch_size)
     # dataset = dataset.shuffle(50).batch(batch_size) #小范围的shuffle乱序
+
+    #标签路径数据集
+    dataset_image_path = tf.data.Dataset.from_tensor_slices(images_path)
+    #通过映射函数生成图像数据集
+    dataset_image = dataset_image_path.map(load_image)
+    # pprint(dataset_image)
+    dataset_label = tf.data.Dataset.from_tensor_slices(labels)
+    dataset = tf.data.Dataset.zip((dataset_image, dataset_label))
     print("输出结果------------》",dataset)
 
     return dataset
@@ -164,7 +173,7 @@ def train_step(image, label):
 
 #训练函数
 def train(dataset, epochs):
-    print("kaishixunlian")
+    print("---------------Start Training ------------------")
     for epoch in range(epochs):
         for images_batch, label_batch in dataset:
             train_step(images_batch, label_batch)
