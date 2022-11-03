@@ -1,10 +1,5 @@
-from cProfile import label
 from glob import glob
-from importlib.resources import path
 import pathlib
-from modulefinder import Module
-from pprint import pprint
-from turtle import shape
 import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
@@ -14,7 +9,7 @@ import random
 batch_size = 32
 noise_dim = 100
 class_num = 3
-epochs = 1000
+epochs = 10000
 
 
 
@@ -33,27 +28,27 @@ def make_dataset():
     images_path = glob.glob('D:/NotOnlyCode/srf/Acgan/achieve/*/*.jpeg')
     labels = [path.split("\\")[1] for path in images_path]
     random.shuffle(images_path)
+    random.shuffle(labels)
+
 
     label_to_index = dict((name, index) for index, name in enumerate(np.unique(labels)))
+    print(label_to_index)
     all_image_labels = [label_to_index[pathlib.Path(path).parent.name] for path in images_path]
    
-    # for image, label in zip(images_path[:5], all_image_labels[:5]):
-    #     print(image, "->", label)
-
-    # dataset = tf.data.Dataset.from_tensor_slices((images_path, all_image_labels))
-    # dataset = dataset.map(load_image)
-    # dataset = dataset.batch(batch_size)
-    # dataset = dataset.shuffle(50).batch(batch_size) #小范围的shuffle乱序
+    labels = [label_to_index.get(name) for name in labels]
+    labels = np.array(labels)
+    # print(labels)
 
     #标签路径数据集
     dataset_image_path = tf.data.Dataset.from_tensor_slices(images_path)
     #通过映射函数生成图像数据集
     dataset_image = dataset_image_path.map(load_image)
     # pprint(dataset_image)
+    
     dataset_label = tf.data.Dataset.from_tensor_slices(labels)
     dataset = tf.data.Dataset.zip((dataset_image, dataset_label))
-    print("输出结果------------》",dataset)
-
+    print(dataset)
+    print(dataset_label)
     return dataset
 
 
@@ -150,9 +145,12 @@ def discriminator_model():
 generator = generator_model()
 discriminator = discriminator_model()
 
+@tf.function
 #对一个批次的训练函数
 def train_step(image, label):
-    size = label.shape[0]
+    # size大小为一个batch_size大小
+    # size = label.shape[0]
+    size = batch_size
     noise = tf.random.normal([size, noise_dim])
 
     with tf.GradientTape() as gen_tape, tf.GradientTape() as dis_taps:
@@ -176,6 +174,9 @@ def train(dataset, epochs):
     print("---------------Start Training ------------------")
     for epoch in range(epochs):
         for images_batch, label_batch in dataset:
+            # print("label_batch: ",label_batch)
+            # print("lable_batch's shape: ", label_batch.shape)
+            # break
             train_step(images_batch, label_batch)
         if epoch % 2 == 0:
             print("epoch:", epoch)
