@@ -1,5 +1,7 @@
 from glob import glob
 import pathlib
+from pprint import pprint
+
 import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
@@ -32,7 +34,7 @@ def make_dataset():
 
 
     label_to_index = dict((name, index) for index, name in enumerate(np.unique(labels)))
-    print(label_to_index)
+    # print(label_to_index)
     all_image_labels = [label_to_index[pathlib.Path(path).parent.name] for path in images_path]
    
     labels = [label_to_index.get(name) for name in labels]
@@ -47,8 +49,8 @@ def make_dataset():
     
     dataset_label = tf.data.Dataset.from_tensor_slices(labels)
     dataset = tf.data.Dataset.zip((dataset_image, dataset_label))
-    print(dataset)
-    print(dataset_label)
+    pprint(dataset)
+    # print(dataset_label)
     return dataset
 
 
@@ -177,6 +179,8 @@ def train(dataset, epochs):
             # print("label_batch: ",label_batch)
             # print("lable_batch's shape: ", label_batch.shape)
             # break
+
+            #TODO: teain_step()函数有问题
             train_step(images_batch, label_batch)
         if epoch % 2 == 0:
             print("epoch:", epoch)
