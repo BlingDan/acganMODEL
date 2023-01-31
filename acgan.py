@@ -28,7 +28,7 @@ def load_image(path):
 #制作数据集
 def make_dataset():
     images_path = glob.glob('D:/NotOnlyCode/srf/Acgan/achieve/*/*.jpeg')
-    labels = [path.split("\\")[1] for path in images_path]
+    labels = [path.split("\\")[1] for path in images_path]      #不同设备需要修改
     random.shuffle(images_path)
     random.shuffle(labels)
 
@@ -81,12 +81,12 @@ def geneatoer_loss(fake_S_out, fake_C_out, label):
 
 #生成器
 def generator_model():
-    noise = tf.keras.layers.Input(shape = ((noise_dim,)))
-    label = tf.keras.layers.Input(shape = (()))
+    noise = tf.keras.layers.Input(shape = ((noise_dim, )))   #输入的噪声
+    label = tf.keras.layers.Input(shape = (())) #输入标签就是一个数，但是这个数表示多种类别,在Embedding层进行处理
     
     x = tf.keras.layers.Embedding(3, 50, input_length=1)(label) #将长度为1的标签映射
 
-    #将x和noise合并，变成长度为150的向量，并希望最终得到
+    # 将x和noise合并，变成长度为150的向量，并希望最终得到
     x = tf.keras.layers.concatenate([noise, x])
     x = tf.keras.layers.Dense(4*4*64*8, use_bias=False)(x)
     x = tf.keras.layers.Reshape((4, 4, 64 * 8))(x)
@@ -94,19 +94,19 @@ def generator_model():
     x = tf.keras.layers.ReLU()(x)
 
     #反卷积
-    x = tf.keras.layers.Conv2DTranspose(64*4, (5,5), strides=(2,2), padding='same', use_bias=False)(x)
+    x = tf.keras.layers.Conv2DTranspose(64*4, (5, 5), strides=(2, 2), padding='same', use_bias=False)(x)
     x = tf.keras.layers.BatchNormalization()(x)
     x = tf.keras.layers.ReLU()(x)
 
-    x = tf.keras.layers.Conv2DTranspose(64*2, (5,5), strides=(2,2), padding='same', use_bias=False)(x)
+    x = tf.keras.layers.Conv2DTranspose(64*2, (5, 5), strides=(2, 2), padding='same', use_bias=False)(x)
     x = tf.keras.layers.BatchNormalization()(x)
     x = tf.keras.layers.ReLU()(x)
 
-    x = tf.keras.layers.Conv2DTranspose(64, (5,5), strides=(2,2), padding='same', use_bias=False)(x)
+    x = tf.keras.layers.Conv2DTranspose(64, (5, 5), strides=(2, 2), padding='same', use_bias=False)(x)
     x = tf.keras.layers.BatchNormalization()(x)
     x = tf.keras.layers.ReLU()(x)
 
-    x = tf.keras.layers.Conv2DTranspose(3, (5,5), strides=(2,2), padding='same', use_bias=False)(x)
+    x = tf.keras.layers.Conv2DTranspose(3, (5, 5), strides=(2, 2), padding='same', use_bias=False)(x)
     x = tf.keras.layers.Activation('tanh')(x)
 
     model = tf.keras.Model(inputs=[noise, label], outputs=x)
@@ -114,24 +114,24 @@ def generator_model():
 
 #判别器
 def discriminator_model():
-    image = tf.keras.layers.Input(shape=((64, 64, 3)))
+    image = tf.keras.layers.Input(shape=(64, 64, 3))
 
-    x = tf.keras.layers.Conv2D(64, (3,3), strides=(2,2), padding='same', use_bias=False)(image)
+    x = tf.keras.layers.Conv2D(64, (3, 3), strides=(2, 2), padding='same', use_bias=False)(image)
     x = tf.keras.layers.BatchNormalization()(x)
     x = tf.keras.layers.LeakyReLU()(x)
     x = tf.keras.layers.Dropout(0.5)(x)
 
-    x = tf.keras.layers.Conv2D(64*2, (3,3), strides=(2,2), padding='same', use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(64*2, (3, 3), strides=(2, 2), padding='same', use_bias=False)(x)
     x = tf.keras.layers.BatchNormalization()(x)
     x = tf.keras.layers.LeakyReLU()(x)
     x = tf.keras.layers.Dropout(0.5)(x)
 
-    x = tf.keras.layers.Conv2D(64*4, (3,3), strides=(2,2), padding='same', use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(64*4, (3, 3), strides=(2,2), padding='same', use_bias=False)(x)
     x = tf.keras.layers.BatchNormalization()(x)
     x = tf.keras.layers.LeakyReLU()(x)
     x = tf.keras.layers.Dropout(0.5)(x)
 
-    x = tf.keras.layers.Conv2D(64*8, (3,3), strides=(2,2), padding='same', use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(64*8, (3, 3), strides=(2, 2), padding='same', use_bias=False)(x)
     x = tf.keras.layers.BatchNormalization()(x)
     x = tf.keras.layers.LeakyReLU()(x)
     x = tf.keras.layers.Dropout(0.5)(x)
@@ -150,15 +150,15 @@ discriminator = discriminator_model()
 @tf.function
 #对一个批次的训练函数
 def train_step(image, label):
-    # size大小为一个batch_size大小
-    # size = label.shape[0]
-    size = batch_size
+    # print(label.shape)   label.shape = ()
+    size = label.shape[0]
+    # size = batch_size
     noise = tf.random.normal([size, noise_dim])
 
     with tf.GradientTape() as gen_tape, tf.GradientTape() as dis_taps:
         gen_images = generator((noise, label), training=True)
-        fake_S_out, fake_C_out =discriminator(gen_images, training=True)
 
+        fake_S_out, fake_C_out = discriminator(gen_images, training=True)
         real_S_out, real_C_out = discriminator(image, training=True)
 
         disc_loss = discrimitor_loss(real_S_out, real_C_out, fake_S_out, label)
@@ -176,12 +176,11 @@ def train(dataset, epochs):
     print("---------------Start Training ------------------")
     for epoch in range(epochs):
         for images_batch, label_batch in dataset:
-            # print("label_batch: ",label_batch)
+            print("label_batch: ",label_batch)
             # print("lable_batch's shape: ", label_batch.shape)
             # break
 
             #TODO: teain_step()函数有问题
-
             train_step(images_batch, label_batch)
         if epoch % 2 == 0:
             print("epoch:", epoch)
@@ -192,15 +191,15 @@ def plot_gen_image(model, noise, label):
     gen_image = model((noise, label), training=False)
 
     fig = plt.figure(figsize=(10, 1))
-    for i in range(10):
-        plt.subplot(1, 10, i + 1)
+    for i in range(3):
+        plt.subplot(1, 3, i + 1)
         plt.imshow((gen_image[i, :, :] + 1) / 2, cmap='gray')
         plt.axis('off')
     plt.show()
 
 
 dataset = make_dataset()
-train(dataset,epochs)
+train(dataset, epochs)
 
 
     
