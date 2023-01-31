@@ -181,6 +181,7 @@ def train(dataset, epochs):
             # break
 
             #TODO: teain_step()函数有问题
+
             train_step(images_batch, label_batch)
         if epoch % 2 == 0:
             print("epoch:", epoch)
