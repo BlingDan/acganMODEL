@@ -81,7 +81,9 @@ def geneatoer_loss(fake_S_out, fake_C_out, label):
 
 #生成器
 def generator_model():
-    noise = tf.keras.layers.Input(shape = ((noise_dim, )))   #输入的噪声
+    # TODO:噪声的shape
+    noise = tf.keras.layers.Input(shape = ((noise_dim,)))   #输入的噪声
+    print("generator_input_noise:", noise)
     label = tf.keras.layers.Input(shape = (())) #输入标签就是一个数，但是这个数表示多种类别,在Embedding层进行处理
     
     x = tf.keras.layers.Embedding(3, 50, input_length=1)(label) #将长度为1的标签映射
@@ -151,9 +153,9 @@ discriminator = discriminator_model()
 #对一个批次的训练函数
 def train_step(image, label):
     # print(label.shape)   label.shape = ()
-    size = label.shape[0]
-    # size = batch_size
+    size = batch_size
     noise = tf.random.normal([size, noise_dim])
+    print("noise:", noise)
 
     with tf.GradientTape() as gen_tape, tf.GradientTape() as dis_taps:
         gen_images = generator((noise, label), training=True)
@@ -176,11 +178,10 @@ def train(dataset, epochs):
     print("---------------Start Training ------------------")
     for epoch in range(epochs):
         for images_batch, label_batch in dataset:
-            print("label_batch: ",label_batch)
+            # print("label_batch: ",label_batch, '\n', "images_batch:", images_batch)
             # print("lable_batch's shape: ", label_batch.shape)
             # break
 
-            #TODO: teain_step()函数有问题
             train_step(images_batch, label_batch)
         if epoch % 2 == 0:
             print("epoch:", epoch)
