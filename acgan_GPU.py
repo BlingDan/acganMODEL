@@ -1,7 +1,10 @@
+from cProfile import label
 from glob import glob
+from importlib.resources import path
+from modulefinder import Module
 import pathlib
-from pprint import pprint
-
+from tkinter.ttk import LabeledScale
+from turtle import shape
 import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
@@ -11,46 +14,41 @@ import random
 batch_size = 32
 noise_dim = 100
 class_num = 3
-epochs = 10000
+epochs = 1000
 
 
 
-def load_image(path):
+def load_image(path, label):
     img = tf.io.read_file(path)
     img = tf.image.decode_jpeg(img)
     img = tf.image.resize(img, [192, 192]) #调整图像大小
     img = tf.image.random_crop(img, [64, 64, 3]) #随机裁剪成64*64
     img = tf.image.random_flip_left_right(img) #随机左右反转
     img = img / 255.0
-    return img
+    return img, label
 
 
 #制作数据集
 def make_dataset():
-    images_path = glob.glob('D:/NotOnlyCode/srf/Acgan/achieve/*/*.jpg')
-    labels = [path.split("\\")[1] for path in images_path]      #不同设备需要修改
+    # images_path = glob.glob('F:/wheat_leaf/*/*.jpg') #路径要修改
+    # labels = [path.split("\\")[1] for path in images_path] #此处被修改过
+    images_path = glob.glob('D:/NotOnlyCode/leaf_image/*/*.jpeg')
+    labels = [path.split("\\")[1] for path in images_path]  # 不同设备需要修改
+    print(labels)
     random.shuffle(images_path)
-    random.shuffle(labels)
-
 
     label_to_index = dict((name, index) for index, name in enumerate(np.unique(labels)))
-    # print(label_to_index)
     all_image_labels = [label_to_index[pathlib.Path(path).parent.name] for path in images_path]
    
-    labels = [label_to_index.get(name) for name in labels]
-    labels = np.array(labels)
-    # print(labels)
+    # for image, label in zip(images_path[:5], all_image_labels[:5]):
+    #     print(image, "->", label)
 
-    #标签路径数据集
-    dataset_image_path = tf.data.Dataset.from_tensor_slices(images_path)
-    #通过映射函数生成图像数据集
-    dataset_image = dataset_image_path.map(load_image)
-    # pprint(dataset_image)
-    
-    dataset_label = tf.data.Dataset.from_tensor_slices(labels)
-    dataset = tf.data.Dataset.zip((dataset_image, dataset_label))
-    pprint(dataset)
-    # print(dataset_label)
+    dataset = tf.data.Dataset.from_tensor_slices((images_path, all_image_labels))
+    dataset = dataset.map(load_image)
+    dataset = dataset.batch(batch_size)
+    # dataset = dataset.shuffle(50).batch(batch_size) #小范围的shuffle乱序
+    print("输出结果------------》",dataset)
+
     return dataset
 
 
@@ -81,14 +79,12 @@ def geneatoer_loss(fake_S_out, fake_C_out, label):
 
 #生成器
 def generator_model():
-    # TODO:噪声的shape
-    noise = tf.keras.layers.Input(shape = ((noise_dim,)))   #输入的噪声
-    print("generator_input_noise:", noise)
-    label = tf.keras.layers.Input(shape = (())) #输入标签就是一个数，但是这个数表示多种类别,在Embedding层进行处理
+    noise = tf.keras.layers.Input(shape = ((noise_dim,)))
+    label = tf.keras.layers.Input(shape = (()))
     
     x = tf.keras.layers.Embedding(3, 50, input_length=1)(label) #将长度为1的标签映射
 
-    # 将x和noise合并，变成长度为150的向量，并希望最终得到
+    #将x和noise合并，变成长度为150的向量，并希望最终得到
     x = tf.keras.layers.concatenate([noise, x])
     x = tf.keras.layers.Dense(4*4*64*8, use_bias=False)(x)
     x = tf.keras.layers.Reshape((4, 4, 64 * 8))(x)
@@ -96,19 +92,19 @@ def generator_model():
     x = tf.keras.layers.ReLU()(x)
 
     #反卷积
-    x = tf.keras.layers.Conv2DTranspose(64*4, (5, 5), strides=(2, 2), padding='same', use_bias=False)(x)
+    x = tf.keras.layers.Conv2DTranspose(64*4, (5,5), strides=(2,2), padding='same', use_bias=False)(x)
     x = tf.keras.layers.BatchNormalization()(x)
     x = tf.keras.layers.ReLU()(x)
 
-    x = tf.keras.layers.Conv2DTranspose(64*2, (5, 5), strides=(2, 2), padding='same', use_bias=False)(x)
+    x = tf.keras.layers.Conv2DTranspose(64*2, (5,5), strides=(2,2), padding='same', use_bias=False)(x)
     x = tf.keras.layers.BatchNormalization()(x)
     x = tf.keras.layers.ReLU()(x)
 
-    x = tf.keras.layers.Conv2DTranspose(64, (5, 5), strides=(2, 2), padding='same', use_bias=False)(x)
+    x = tf.keras.layers.Conv2DTranspose(64, (5,5), strides=(2,2), padding='same', use_bias=False)(x)
     x = tf.keras.layers.BatchNormalization()(x)
     x = tf.keras.layers.ReLU()(x)
 
-    x = tf.keras.layers.Conv2DTranspose(3, (5, 5), strides=(2, 2), padding='same', use_bias=False)(x)
+    x = tf.keras.layers.Conv2DTranspose(3, (5,5), strides=(2,2), padding='same', use_bias=False)(x)
     x = tf.keras.layers.Activation('tanh')(x)
 
     model = tf.keras.Model(inputs=[noise, label], outputs=x)
@@ -116,24 +112,24 @@ def generator_model():
 
 #判别器
 def discriminator_model():
-    image = tf.keras.layers.Input(shape=(64, 64, 3))
+    image = tf.keras.layers.Input(shape=((64, 64, 3)))
 
-    x = tf.keras.layers.Conv2D(64, (3, 3), strides=(2, 2), padding='same', use_bias=False)(image)
+    x = tf.keras.layers.Conv2D(64, (3,3), strides=(2,2), padding='same', use_bias=False)(image)
     x = tf.keras.layers.BatchNormalization()(x)
     x = tf.keras.layers.LeakyReLU()(x)
     x = tf.keras.layers.Dropout(0.5)(x)
 
-    x = tf.keras.layers.Conv2D(64*2, (3, 3), strides=(2, 2), padding='same', use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(64*2, (3,3), strides=(2,2), padding='same', use_bias=False)(x)
     x = tf.keras.layers.BatchNormalization()(x)
     x = tf.keras.layers.LeakyReLU()(x)
     x = tf.keras.layers.Dropout(0.5)(x)
 
-    x = tf.keras.layers.Conv2D(64*4, (3, 3), strides=(2,2), padding='same', use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(64*4, (3,3), strides=(2,2), padding='same', use_bias=False)(x)
     x = tf.keras.layers.BatchNormalization()(x)
     x = tf.keras.layers.LeakyReLU()(x)
     x = tf.keras.layers.Dropout(0.5)(x)
 
-    x = tf.keras.layers.Conv2D(64*8, (3, 3), strides=(2, 2), padding='same', use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(64*8, (3,3), strides=(2,2), padding='same', use_bias=False)(x)
     x = tf.keras.layers.BatchNormalization()(x)
     x = tf.keras.layers.LeakyReLU()(x)
     x = tf.keras.layers.Dropout(0.5)(x)
@@ -149,18 +145,15 @@ def discriminator_model():
 generator = generator_model()
 discriminator = discriminator_model()
 
-@tf.function
 #对一个批次的训练函数
 def train_step(image, label):
-    # print(label.shape)   label.shape = ()
-    size = batch_size
+    size = label.shape[0]
     noise = tf.random.normal([size, noise_dim])
-    print("noise:", noise)
 
     with tf.GradientTape() as gen_tape, tf.GradientTape() as dis_taps:
         gen_images = generator((noise, label), training=True)
+        fake_S_out, fake_C_out =discriminator(gen_images, training=True)
 
-        fake_S_out, fake_C_out = discriminator(gen_images, training=True)
         real_S_out, real_C_out = discriminator(image, training=True)
 
         disc_loss = discrimitor_loss(real_S_out, real_C_out, fake_S_out, label)
@@ -175,35 +168,26 @@ def train_step(image, label):
 
 #训练函数
 def train(dataset, epochs):
-    print("---------------Start Training ------------------")
+    print("开始训练")
     for epoch in range(epochs):
         for images_batch, label_batch in dataset:
-            # print("label_batch: ",label_batch, '\n', "images_batch:", images_batch)
-            # print("lable_batch's shape: ", label_batch.shape)
-            # break
-
             train_step(images_batch, label_batch)
-        if epoch % 2 == 0:
+        if epoch % 50 == 0: #被修改过，最初为100
             print("epoch:", epoch)
             plot_gen_image(generator,noise_seed, label_seed)
 
 #绘图函数
 def plot_gen_image(model, noise, label):
     gen_image = model((noise, label), training=False)
+    #gen_image = tf.squeeze(gen_image, -1) #被删掉了
 
     fig = plt.figure(figsize=(10, 1))
-    for i in range(3):
-        plt.subplot(1, 3, i + 1)
+    for i in range(10):
+        plt.subplot(1, 10, i + 1)
         plt.imshow((gen_image[i, :, :] + 1) / 2, cmap='gray')
         plt.axis('off')
     plt.show()
 
 
 dataset = make_dataset()
-train(dataset, epochs)
-
-
-    
-
-
-
+train(dataset,epochs)
