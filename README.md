@@ -1,0 +1,12 @@
+### 文件结构
++ acgan.py
+
+    windows系统测试程序
+
++ acgan_GPU.py
+
+    linux系统程序(小组云平台使用)
+
++ helper.py
+    
+    如果遇到图片格式不正确问题，使用脚本中的函数更改
